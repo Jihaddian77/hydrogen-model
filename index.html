@@ -199,13 +199,9 @@
     }
     scene.add(axisGroup);
 
-    // --- LOGIKA KONTROL (MOUSE & SENTUH) ---
-    const handleStart = (x, y) => {
-        isMouseDown = true;
-        lastMousePos = { x, y };
-    };
-
-    const handleMove = (x, y) => {
+    // --- LOGIKA KONTROL UNTUK HP & DESKTOP ---
+    const onStart = (x, y) => { isMouseDown = true; lastMousePos = { x, y }; };
+    const onMove = (x, y) => {
         if (!isMouseDown) return;
         isAutofocusActive = false;
         camAngle -= (x - lastMousePos.x) * 0.007; 
@@ -213,28 +209,27 @@
         camHeightFactor = THREE.MathUtils.clamp(camHeightFactor, -0.1, 1.2);
         lastMousePos = { x, y };
     };
+    const onEnd = () => { isMouseDown = false; };
 
-    const handleEnd = () => { isMouseDown = false; };
+    // Mouse Events
+    window.addEventListener('mousedown', (e) => onStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', onEnd);
 
-    // Event Mouse
-    window.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
-    window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
-    window.addEventListener('mouseup', handleEnd);
-
-    // Event Touch (HP)
+    // Touch Events (HP)
     window.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: false });
     window.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 1) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: false });
-    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchend', onEnd);
 
     window.addEventListener('wheel', (e) => {
         camRadius = THREE.MathUtils.clamp(camRadius + e.deltaY * 0.2, 50, 600);
     }, { passive: true });
 
-    // --- LOGIKA FISIKA & PARTIKEL ---
+    // --- LOGIKA FISIKA ---
     const numPoints = 200000; 
     const scaleFactor = 60.0; 
     const geometry = new THREE.BufferGeometry();
@@ -352,6 +347,8 @@
 
     function animate() {
         requestAnimationFrame(animate);
+        
+        // --- LOGIKA AUTOFOCUS ASLIMU ---
         let targetAngle = 0.8, targetHeight = 0.3;
         if (window.isCutawayActive) {
             if (window.cutMode === 'vertikal') { targetAngle = 0.8; targetHeight = 0.3; } 
@@ -361,6 +358,7 @@
              camAngle = THREE.MathUtils.lerp(camAngle, targetAngle, 0.05);
              camHeightFactor = THREE.MathUtils.lerp(camHeightFactor, targetHeight, 0.05);
         }
+
         camera.position.x = camRadius * Math.sin(camAngle);
         camera.position.z = camRadius * Math.cos(camAngle);
         camera.position.y = camRadius * (camHeightFactor + 0.1); 
