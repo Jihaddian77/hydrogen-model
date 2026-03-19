@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Quantum Orbital - Hydrogen Model</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" 
+            onload="renderMathInElement(document.body);"></script>
+
+    <style>
+        :root {
+            --accent: #ff4400;
+            --glass-light: rgba(0, 0, 0, 0.03); 
+            --glass-border-light: rgba(0, 0, 0, 0.12);
+            --bg: #e0e0da;
+            --text-dark: #222222;
+            --font-latex: "KaTeX_Main", "Times New Roman", serif;
+        }
+        body { margin: 0; background-color: var(--bg); overflow: hidden; font-family: var(--font-latex); color: var(--text-dark); }
+
+        /* --- UI KIRI --- */
+        #side-container { position: absolute; top: 30px; left: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 100; width: 170px; }
+        #header-box { background: var(--glass-light); padding: 10px 15px; border: 1px solid var(--glass-border-light); backdrop-filter: blur(20px); border-radius: 2px; color: var(--text-dark); display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        #header-box h1 { font-size: 20px; font-weight: normal; margin: 0; line-height: 1.2; color: inherit; }
+        #ui-panel { background: var(--glass-light); padding: 20px; border: 1px solid var(--glass-border-light); backdrop-filter: blur(25px); display: flex; flex-direction: column; gap: 18px; border-radius: 2px; color: var(--text-dark); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .input-group { display: flex; flex-direction: column; gap: 12px; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; }
+        .math-label { font-size: 16px; font-style: italic; color: inherit; opacity: 0.9;}
+        input { background: rgba(0,0,0,0.05); border: 1px solid var(--glass-border-light); color: inherit; padding: 4px; width: 45px; text-align: center; font-size: 14px; font-family: var(--font-latex); outline: none; }
+        input:focus { border-color: var(--accent); }
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #eee; color: #000; border: none; padding: 10px; font-family: var(--font-latex); font-size: 10px; cursor: pointer; text-transform: uppercase; transition: 0.2s; border-radius: 1px; width: 100%; }
+        button:hover { opacity: 0.8; }
+        button.active { background: var(--accent); color: white; border-color: var(--accent); font-weight: bold; }
+        
+        #controls-hint { position: absolute; bottom: 30px; right: 90px; font-size: 11px; opacity: 0.5; text-align: right; line-height: 1.6; font-style: italic; color: #444; pointer-events: none; z-index: 90; }
+
+        /* --- STYLING BARU: LABEL SKALA ATOM (Å) --- */
+        .axis-label {
+            font-family: sans-serif;
+            font-size: 10px;
+            color: rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            text-shadow: 0 0 2px #fff;
+        }
+
+        /* --- STYLE BARU: TOMBOL MUSIK (CUSTOM) --- */
+        #music-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+        }
+        #music-btn {
+            width: 45px;
+            height: 45px;
+            background: var(--glass-light);
+            border: 1px solid var(--glass-border-light);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        #music-btn:hover { background: rgba(0,0,0,0.08); transform: scale(1.1); }
+        #music-btn svg { width: 20px; height: 20px; fill: var(--text-dark); }
+        #music-btn.playing { border-color: var(--accent); background: rgba(255, 68, 0, 0.1); }
+        #music-btn.playing svg { fill: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div id="side-container">
+    <div id="header-box">
+        <h1>$$\psi_{n,l,m}(\vec{r})$$</h1>
+    </div>
+    
+    <div id="ui-panel">
+        <div class="input-group">
+            <div class="input-row">
+                <span class="math-label">$$n$$</span> 
+                <input type="number" id="nVal" value="3" min="1" max="6">
+            </div>
+            <div class="input-row">
+                <span class="math-label">$$l$$</span> 
+                <input type="number" id="lVal" value="2" min="0" max="5">
+            </div>
+            <div class="input-row">
+                <span class="math-label">$$m$$</span> 
+                <input type="number" id="mVal" value="2" min="-5" max="5">
+            </div>
+        </div>
+
+        <div style="height: 1px; width: 100%; background: var(--glass-border-light);"></div>
+
+        <div class="btn-group">
+            <button onclick="updateOrbital()">Update</button>
+            <button id="cutBtn" onclick="toggleCutaway()" class="active">Cut ON</button>
+            <button id="modeBtn" onclick="switchCutMode()">Mode: Vertikal</button>
+        </div>
+    </div>
+</div>
+
+<div id="music-container">
+    <div id="music-btn" onclick="toggleMusic()">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+    </div>
+    <audio id="bg-audio" loop>
+        <source src="musik_kamu.mp3" type="audio/mpeg">
+    </audio>
+</div>
+
+<div id="controls-hint">HYDROGEN MODEL<br>PROJECT : RIZKY JIHAD</div>
+
+<script type="importmap">
+    { 
+        "imports": { 
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        } 
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+    // --- SETUP SCENE ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3000);
+    
+    let camRadius = 250; // Sedikit dijauhkan agar sumbu terlihat
+    let camAngle = 0.8; 
+    let camHeightFactor = 0.3; 
+    let isMouseDown = false;
+    let isAutofocusActive = true; 
+    let lastMousePos = { x: 0, y: 0 };
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0xe0e0da); 
+    document.body.appendChild(renderer.domElement);
+
+    // --- SETUP CSS2D RENDERER (UNTUK LABEL TEKS) ---
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none'; // Penting: agar orbit kontrol mouse tembus
+    document.body.appendChild(labelRenderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 0.2);
+    camera.add(pointLight);
+    scene.add(camera);
+
+    // ========================================================
+    // PERUBAHAN UTAMA: MENGGANTI KUBUS DENGAN SUMBU SKALA ATOM
+    // ========================================================
+
+    // KONVERSI SKALA: Kita asumsikan 1 Angstrom (Å) = 113 unit Three.js
+    // Ini didasarkan pada scaleFactor=60 (Bohr Radius) dan orbital yang pas di layar.
+    const angstromUnit = 113; 
+    const maxScale = 3; // Menampilkan skala sampai 3Å
+
+    // 1. Membuat Inti Atom (Nucleus) - Titik Origin
+    const nucleusGeo = new THREE.SphereGeometry(2, 16, 16);
+    const nucleusMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const nucleus = new THREE.Mesh(nucleusGeo, nucleusMat);
+    scene.add(nucleus);
+
+    // 2. Membuat Sumbu Skala (Garis $x$, $y$, $z$)
+    const axisGroup = new THREE.Group();
+    const axisMaterial = new THREE.LineBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
+
+    function createAxisLine(startPoint, endPoint) {
+        const points = [startPoint, endPoint];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return new THREE.Line(geometry, axisMaterial);
+    }
+
+    // Sumbu X (Merah), Y (Hijau), Z (Biru) - Diperpanjang sedikit
+    axisGroup.add(createAxisLine(new THREE.Vector3(-4 * angstromUnit, 0, 0), new THREE.Vector3(4 * angstromUnit, 0, 0)));
+    axisGroup.add(createAxisLine(new THREE.Vector3(0, -4 * angstromUnit, 0), new THREE.Vector3(0, 4 * angstromUnit, 0)));
+    axisGroup.add(createAxisLine(new THREE.Vector3(0, 0, -4 * angstromUnit), new THREE.Vector3(0, 0, 4 * angstromUnit)));
+
+    // 3. Menambahkan Label Skala Angstrom (Å) menggunakan CSS2D
+    function createAxisLabel(text, x, y, z) {
+        const div = document.createElement('div');
+        div.className = 'axis-label';
+        div.textContent = text;
+        const label = new CSS2DObject(div);
+        label.position.set(x, y, z);
+        return label;
+    }
+
+    // Label Origin
+    axisGroup.add(createAxisLabel('0Å', -10, -10, 0));
+
+    // Menambahkan label pada setiap Å di sumbu X dan Y
+    for (let i = 1; i <= maxScale; i++) {
+        const pos = i * angstromUnit;
+        const neg = -i * angstromUnit;
+        
+        // Sumbu X
+        axisGroup.add(createAxisLabel(`${i}Å`, pos, -10, 0));
+        axisGroup.add(createAxisLabel(`-${i}Å`, neg, -10, 0));
+
+        // Sumbu Y
+        axisGroup.add(createAxisLabel(`${i}Å`, -10, pos, 0));
+        axisGroup.add(createAxisLabel(`-${i}Å`, -10, neg, 0));
+        
+        // Sumbu Z (Opsional, jangan terlalu ramai)
+        axisGroup.add(createAxisLabel(`${i}Å`, -10, 0, pos));
+    }
+
+    scene.add(axisGroup);
+
+    // ========================================================
+
+    window.addEventListener('mousedown', (e) => { isMouseDown = true; lastMousePos = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+    window.addEventListener('mousemove', (e) => {
+        if (!isMouseDown) return;
+        isAutofocusActive = false;
+        camAngle -= (e.clientX - lastMousePos.x) * 0.007; 
+        camHeightFactor += (e.clientY - lastMousePos.y) * 0.003; 
+        camHeightFactor = THREE.MathUtils.clamp(camHeightFactor, -0.1, 1.2);
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('wheel', (e) => {
+        camRadius = THREE.MathUtils.clamp(camRadius + e.deltaY * 0.2, 50, 600);
+    }, { passive: true });
+
+    const numPoints = 200000; 
+    const scaleFactor = 60.0; // Bohr Radius (skala partikel)
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(numPoints * 3);
+    const colors = new Float32Array(numPoints * 3);
+    const particleData = [];
+
+    window.isCutawayActive = true;
+    window.cutMode = 'vertikal';
+
+    window.switchCutMode = () => {
+        window.cutMode = (window.cutMode === 'vertikal') ? 'horizontal' : 'vertikal';
+        document.getElementById('modeBtn').innerText = "Mode: " + (window.cutMode === 'vertikal' ? "Vertikal" : "Horizontal");
+        isAutofocusActive = true; 
+    };
+
+    // LOGIKA BARU: TOGGLE MUSIC
+    const audio = document.getElementById('bg-audio');
+    const mBtn = document.getElementById('music-btn');
+    window.toggleMusic = () => {
+        if (audio.paused) {
+            audio.play();
+            mBtn.classList.add('playing');
+        } else {
+            audio.pause();
+            mBtn.classList.remove('playing');
+        }
+    };
+
+    function factorial(k) {
+        let f = 1.0;
+        for (let i = 2; i <= k; i++) f *= parseFloat(i);
+        return f;
+    }
+
+    function getRadial(n, l, r) {
+        let rho = (2.0 * r) / parseFloat(n);
+        let R = Math.exp(-rho / 2.0);
+        if (n === 1) return R; 
+        if (n === 2) {
+            if (l === 0) return R * (2.0 - rho);
+            if (l === 1) return R * rho;
+        }
+        if (n === 3) {
+            if (l === 0) return R * (6.0 - 6.0*rho + rho*rho);
+            if (l === 1) return R * (4.0 - rho) * rho;
+            if (l === 2) return R * rho * rho;
+        }
+        if (n === 4) {
+            if (l === 0) return R * (24.0 - 36.0*rho + 12.0*rho*rho - rho*rho*rho);
+            if (l === 1) return R * (20.0 - 10.0*rho + rho*rho) * rho;
+            if (l === 2) return R * (6.0 - rho) * rho * rho;
+            if (l === 3) return R * rho * rho * rho;
+        }
+        return R * Math.pow(rho, l);
+    }
+
+    function legendre(l, m, x) {
+        if (l === 0) return 1.0;
+        if (l === 1) return (m === 0) ? x : Math.sqrt(Math.max(0, 1 - x * x));
+        if (l === 2) {
+            if (m === 0) return 0.5 * (3.0 * x * x - 1.0);
+            if (Math.abs(m) === 1) return 3.0 * x * Math.sqrt(Math.max(0, 1 - x * x));
+            return 3.0 * (1.0 - x * x);
+        }
+        if (l === 3) {
+            if (m === 0) return 0.5 * (5.0 * x * x * x - 3.0 * x);
+            if (Math.abs(m) === 1) return 1.5 * (5.0 * x * x - 1.0) * Math.sqrt(Math.max(0, 1 - x * x));
+            if (Math.abs(m) === 2) return 15.0 * x * (1.0 - x * x);
+            return 15.0 * Math.pow(Math.sqrt(Math.max(0, 1 - x * x)), 3);
+        }
+        return Math.pow(Math.sqrt(Math.max(0, 1 - x * x)), Math.abs(m)) * Math.pow(x, l - Math.abs(m));
+    }
+
+    function initCloud() {
+        const n = parseInt(document.getElementById('nVal').value);
+        const l = parseInt(document.getElementById('lVal').value);
+        const m = parseInt(document.getElementById('mVal').value);
+        const colPurple = new THREE.Color("#1a0033");
+        const colOrange = new THREE.Color("#ff5500");
+        const colMilk = new THREE.Color("#e0e0da");
+
+        for (let i = 0; i < numPoints; i++) {
+            let x = (Math.random() + Math.random() + Math.random() + Math.random() - 2.0) * scaleFactor;
+            let y = (Math.random() + Math.random() + Math.random() + Math.random() - 2.0) * scaleFactor;
+            let z = (Math.random() + Math.random() + Math.random() + Math.random() - 2.0) * scaleFactor;
+            let r = Math.sqrt(x*x + y*y + z*z);
+            let theta = Math.acos(THREE.MathUtils.clamp(y / (r + 0.0001), -1, 1));
+            let phi = Math.atan2(z, x);
+            let wRadial = getRadial(n, l, r);
+            let normAngular = Math.sqrt(((2*l + 1) * factorial(l - Math.abs(m))) / (4 * Math.PI * factorial(l + Math.abs(m))));
+            let wAngular = normAngular * legendre(l, m, Math.cos(theta));
+            let prob = Math.pow(wRadial * wAngular, 2.0);
+
+            if (Math.random() > prob * 180) {
+                positions[i*3] = positions[i*3+1] = positions[i*3+2] = 10000;
+                particleData[i] = { active: false };
+            } else {
+                positions[i*3] = x; positions[i*3+1] = y; positions[i*3+2] = z;
+                let p = Math.min(prob * 30.0, 1.0);
+                let finalCol = new THREE.Color();
+                if (p < 0.25) finalCol.copy(colPurple);
+                else if (p < 0.8) finalCol.copy(colPurple).lerp(colOrange, (p - 0.25) / 0.55);
+                else finalCol.copy(colOrange).lerp(colMilk, (p - 0.8) / 0.2);
+                colors[i*3] = finalCol.r; colors[i*3+1] = finalCol.g; colors[i*3+2] = finalCol.b;
+                particleData[i] = { active: true, r_planar: Math.sqrt(x*x + z*z), y: y, angle: phi, speed: 0.0008 + 0.045 * Math.exp(-(r / scaleFactor) * 4.5) };
+            }
+        }
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    }
+
+    const material = new THREE.PointsMaterial({ size: 0.85, vertexColors: true, blending: THREE.NormalBlending, depthWrite: true });
+    const cloud = new THREE.Points(geometry, material);
+    scene.add(cloud);
+
+    window.updateOrbital = () => { initCloud(); geometry.attributes.position.needsUpdate = true; geometry.attributes.color.needsUpdate = true; isAutofocusActive = true; };
+    window.toggleCutaway = () => { window.isCutawayActive = !window.isCutawayActive; document.getElementById('cutBtn').classList.toggle('active'); isAutofocusActive = true; };
+
+    initCloud();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        let targetAngle = 0.8, targetHeight = 0.3;
+        if (window.isCutawayActive) {
+            if (window.cutMode === 'vertikal') { targetAngle = 0.8; targetHeight = 0.3; } 
+            else { targetAngle = 1.585; targetHeight = 0.7; }
+        }
+        if (isAutofocusActive && !isMouseDown) {
+             camAngle = THREE.MathUtils.lerp(camAngle, targetAngle, 0.05);
+             camHeightFactor = THREE.MathUtils.lerp(camHeightFactor, targetHeight, 0.05);
+        }
+        camera.position.x = camRadius * Math.sin(camAngle);
+        camera.position.z = camRadius * Math.cos(camAngle);
+        camera.position.y = camRadius * (camHeightFactor + 0.1); 
+        camera.lookAt( nucleus.position ); // Selalu melihat origin (inti)
+
+        const pos = geometry.attributes.position;
+        for (let i = 0; i < numPoints; i++) {
+            const p = particleData[i];
+            if (p && p.active) {
+                p.angle += p.speed;
+                if (p.angle > Math.PI) p.angle -= Math.PI * 2;
+                let isCut = false;
+                if (window.isCutawayActive) {
+                    let curX = p.r_planar * Math.cos(p.angle);
+                    let curZ = p.r_planar * Math.sin(p.angle);
+                    isCut = (window.cutMode === 'vertikal') ? (curX > 0 && curZ > 0) : (p.y > 0 && curX > 0);
+                }
+                if (isCut) {
+                    pos.array[i * 3] = pos.array[i * 3 + 1] = pos.array[i * 3 + 2] = 10000;
+                } else {
+                    pos.array[i * 3] = p.r_planar * Math.cos(p.angle);
+                    pos.array[i * 3 + 1] = p.y;
+                    pos.array[i * 3 + 2] = p.r_planar * Math.sin(p.angle);
+                }
+            }
+        }
+        pos.needsUpdate = true;
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera); // Render label CSS2D
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.setSize(window.innerWidth, window.innerHeight); // Resize label renderer
+    });
+</script>
+</body>
+</html>
